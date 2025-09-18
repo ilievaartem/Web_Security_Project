@@ -1,0 +1,102 @@
+### GET ALL GAMES
+GET http://localhost:8080/api/games
+
+###
+
+### GET ONE GAME
+GET http://localhost:8080/api/games/1
+
+###
+
+### GET NON-EXISTING GAME
+GET http://localhost:8080/api/games/999
+
+###
+
+### CREATE NEW GAME
+POST http://localhost:8080/api/games
+Content-Type: application/json
+
+{
+  "title": "Cyberpunk 2077",
+  "platform": "PC",
+  "price": 59.99,
+  "seller": "CD Projekt RED"
+}
+
+###
+
+### CREATE ANOTHER GAME
+POST http://localhost:8080/api/games
+Content-Type: application/json
+
+{
+  "title": "Elden Ring",
+  "platform": "PlayStation 5",
+  "price": 69.99,
+  "seller": "FromSoftware"
+}
+
+###
+
+### UPDATE EXISTING GAME
+PUT http://localhost:8080/api/games/1
+Content-Type: application/json
+
+{
+  "title": "The Witcher 3: Wild Hunt - Complete Edition",
+  "platform": "PC",
+  "price": 39.99,
+  "seller": "CD Projekt RED"
+}
+
+###
+
+### UPDATE NON-EXISTING GAME
+PUT http://localhost:8080/api/games/999
+Content-Type: application/json
+
+{
+  "title": "Ghost Game",
+  "platform": "PC",
+  "price": 0.01,
+  "seller": "Nobody"
+}
+
+###
+
+### DELETE EXISTING GAME
+DELETE http://localhost:8080/api/games/2
+
+###
+
+### DELETE NON-EXISTING GAME
+DELETE http://localhost:8080/api/games/999
+
+###
+
+### CREATE GAME WITH INVALID DATA (empty title)
+POST http://localhost:8080/api/games
+Content-Type: application/json
+
+{
+  "title": "",
+  "platform": "PC",
+  "price": 29.99,
+  "seller": "Test Seller"
+}
+
+###
+
+### CREATE GAME WITH INVALID DATA (negative price)
+POST http://localhost:8080/api/games
+Content-Type: application/json
+
+{
+  "title": "Test Game",
+  "platform": "Xbox",
+  "price": -10.00,
+  "seller": "Test Seller"
+}
+
+###
