@@ -1,7 +1,8 @@
 package com.ilievaartem.gamemarket.web;
 
-import com.ilievaartem.gamemarket.model.Game;
-import com.ilievaartem.gamemarket.repository.InMemoryGameRepository;
+import com.ilievaartem.gamemarket.dto.GameRequest;
+import com.ilievaartem.gamemarket.dto.GameResponse;
+import com.ilievaartem.gamemarket.service.GameService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,47 +12,48 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/games")
 public class GameController {
-    private final InMemoryGameRepository repository;
+    private final GameService service;
 
-    public GameController(InMemoryGameRepository repository) {
-        this.repository = repository;
+    public GameController(GameService service) {
+        this.service = service;
     }
 
     @GetMapping
-    public List<Game> list() {
-        return repository.findAll();
+    public List<GameResponse> list() {
+        return service.getAll();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Game> get(@PathVariable Long id) {
-        return repository.findById(id)
+    public ResponseEntity<GameResponse> get(@PathVariable Long id) {
+        return service.getById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<Game> create(@RequestBody Game game) {
-        if (game.getTitle() == null || game.getTitle().isBlank()) return ResponseEntity.badRequest().build();
-        if (game.getPlatform() == null || game.getPlatform().isBlank()) return ResponseEntity.badRequest().build();
-        if (game.getPrice() < 0) return ResponseEntity.badRequest().build();
-        Game created = repository.save(new Game(null, game.getTitle().trim(), game.getPlatform().trim(), game.getPrice(), game.getSeller()));
-        return new ResponseEntity<>(created, HttpStatus.CREATED);
+    public ResponseEntity<?> create(@RequestBody GameRequest game) {
+        try {
+            GameResponse created = service.create(game);
+            return new ResponseEntity<>(created, HttpStatus.CREATED);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Game> update(@PathVariable Long id, @RequestBody Game game) {
-        if (game.getTitle() == null || game.getTitle().isBlank()) return ResponseEntity.badRequest().build();
-        if (game.getPlatform() == null || game.getPlatform().isBlank()) return ResponseEntity.badRequest().build();
-        if (game.getPrice() < 0) return ResponseEntity.badRequest().build();
-        return repository.update(id, game)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody GameRequest game) {
+        try {
+            return service.update(id, game)
+                    .<ResponseEntity<?>>map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        boolean removed = repository.deleteById(id);
+        boolean removed = service.delete(id);
         return removed ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 }
-
