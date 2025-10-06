@@ -4,15 +4,56 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Game Market</title>
-  <link rel="stylesheet" href="/assets/style.css" /></head>
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
 <body>
 <header>
   <h1>Game Market</h1>
 </header>
 
-<main>
+<!-- Authentication Panel -->
+<section class="card" aria-labelledby="auth-heading">
+  <h2 id="auth-heading">Вхід в систему</h2>
+  <div class="content">
+    <div id="loginForm" style="display: block;">
+      <div class="grid">
+        <div class="row">
+          <label for="authUser">Користувач</label>
+          <input id="authUser" placeholder="admin" />
+        </div>
+        <div class="row">
+          <label for="authPass">Пароль</label>
+          <input id="authPass" type="password" placeholder="admin" />
+        </div>
+      </div>
+      <div style="height:8px"></div>
+      <div class="actions">
+        <button id="loginBtn" class="btn-primary">Увійти</button>
+        <span class="pill" id="authStatus">Вихід з системи</span>
+      </div>
+    </div>
+
+    <div id="loggedInPanel" style="display: none;">
+      <div class="toolbar">
+        <span class="pill" id="userInfo">Адміністратор</span>
+        <button id="logoutBtn" class="btn-warn">Вийти</button>
+      </div>
+      <div style="height:8px"></div>
+      <div class="toolbar">
+        <small>Тестові ендпоїнти:</small>
+        <button id="testHelloUser" class="btn-primary">Hello User</button>
+        <button id="testHelloAdmin" class="btn-primary">Hello Admin</button>
+        <button id="testHelloUnknown" class="btn-primary">Hello Unknown</button>
+        <span class="muted" id="helloResult"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Admin Panel - Hidden by default -->
+<main id="adminPanel" style="display: none;">
   <section class="card" aria-labelledby="tbl-heading">
-    <h2 id="tbl-heading">Ігри на продаж</h2>
+    <h2 id="tbl-heading">Ігри на продаж (Адмін панель)</h2>
     <div class="content">
       <div class="toolbar">
         <button class="btn-primary" id="refreshBtn">Оновити</button>
@@ -44,7 +85,7 @@
   </section>
 
   <section class="card" aria-labelledby="form-heading">
-    <h2 id="form-heading">Форма</h2>
+    <h2 id="form-heading">Форма редагування</h2>
     <div class="content">
       <form id="gameForm">
         <input type="hidden" id="id" />
@@ -88,6 +129,57 @@
   const API = '/api/games';
   const $ = (id) => document.getElementById(id);
 
+  // Authentication state
+  let auth = null;
+  try {
+    auth = JSON.parse(localStorage.getItem('basicAuth') || 'null');
+  } catch(_) {
+    auth = null;
+  }
+
+  function getAuthHeader(){
+    if(!auth || !auth.username) return undefined;
+    const raw = `${auth.username}:${auth.password ?? ''}`;
+    const token = (typeof btoa === 'function') ? btoa(raw) : '';
+    return 'Basic ' + token;
+  }
+
+  function updateAuthUI(){
+    const isLoggedIn = auth && auth.username;
+
+    // Show/hide panels
+    $('loginForm').style.display = isLoggedIn ? 'none' : 'block';
+    $('loggedInPanel').style.display = isLoggedIn ? 'block' : 'none';
+    $('adminPanel').style.display = isLoggedIn ? 'block' : 'none';
+
+    if (isLoggedIn) {
+      $('userInfo').textContent = `Увійшли як: ${auth.username}`;
+      $('authUser').value = auth.username;
+      $('authPass').value = '';
+    } else {
+      $('authStatus').textContent = 'Вихід з системи';
+      $('authUser').value = '';
+      $('authPass').value = '';
+    }
+  }
+
+  async function fetchJSON(url, opts = {}){
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    const authHeader = getAuthHeader();
+    if(authHeader) headers['Authorization'] = authHeader;
+
+    const res = await fetch(url, { ...opts, headers });
+    if(!res.ok){
+      const msg = await res.text();
+      throw new Error(msg || `${res.status} ${res.statusText}`);
+    }
+    if(res.status === 204) return null;
+
+    const ct = res.headers.get('content-type') || '';
+    if(ct.includes('application/json')) return res.json();
+    return res.text();
+  }
+
   function setForm(game){
     $('id').value = game?.id ?? '';
     $('title').value = game?.title ?? '';
@@ -104,16 +196,6 @@
       price: Number($('price').value || 0),
       seller: $('seller').value.trim()
     }
-  }
-
-  async function fetchJSON(url, opts){
-    const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
-    if(!res.ok){
-      const msg = await res.text();
-      throw new Error(msg || (res.status + ' ' + res.statusText));
-    }
-    if(res.status === 204) return null;
-    return res.json();
   }
 
   function renderRows(items){
@@ -153,8 +235,12 @@
   }
 
   async function load(){
-    const data = await fetchJSON(API);
-    renderRows(data);
+    try {
+      const data = await fetchJSON(API);
+      renderRows(data);
+    } catch(e) {
+      alert('Помилка завантаження: ' + e.message);
+    }
   }
 
   async function doCreate(){
@@ -181,14 +267,74 @@
     await load();
   }
 
+  // Authentication actions
+  $('loginBtn').addEventListener('click', async ()=>{
+    const username = $('authUser').value.trim();
+    const password = $('authPass').value;
+
+    if (!username || !password) {
+      alert('Введіть користувача і пароль');
+      return;
+    }
+
+    // Test authentication with a simple API call
+    const testAuth = { username, password };
+    const raw = `${username}:${password}`;
+    const token = btoa(raw);
+
+    try {
+      const response = await fetch('/api/games', {
+        headers: { 'Authorization': 'Basic ' + token }
+      });
+
+      if (response.ok) {
+        auth = testAuth;
+        localStorage.setItem('basicAuth', JSON.stringify(auth));
+        updateAuthUI();
+        await load();
+        alert('Успішний вхід!');
+      } else {
+        alert('Невірні дані для входу');
+      }
+    } catch(e) {
+      alert('Помилка входу: ' + e.message);
+    }
+  });
+
+  $('logoutBtn').addEventListener('click', ()=>{
+    auth = null;
+    localStorage.removeItem('basicAuth');
+    updateAuthUI();
+    alert('Ви вийшли з системи');
+  });
+
+  // Hello endpoints testers
+  async function testHello(path){
+    $('helloResult').textContent = '...';
+    try {
+      const txt = await fetchJSON(`/api/games/hello/${path}`, { headers: { 'Accept': 'text/plain' } });
+      $('helloResult').textContent = String(txt);
+    } catch(e){
+      $('helloResult').textContent = `❌ ${e.message}`;
+    }
+  }
+
+  $('testHelloUser').addEventListener('click', ()=> testHello('user'));
+  $('testHelloAdmin').addEventListener('click', ()=> testHello('admin'));
+  $('testHelloUnknown').addEventListener('click', ()=> testHello('unknown'));
+
+  // Form actions
   $('gameForm').addEventListener('submit', (e)=>{ e.preventDefault(); doCreate().catch(err => alert(err.message)); });
   $('updateBtn').addEventListener('click', ()=> doUpdate().catch(err => alert(err.message)));
   $('deleteBtn').addEventListener('click', ()=> doDelete().catch(err => alert(err.message)));
   $('clearFormBtn').addEventListener('click', ()=> setForm({}));
   $('refreshBtn').addEventListener('click', ()=> load().catch(err => alert(err.message)));
 
-  load().catch(err => alert(err.message));
+  // Initialize
+  updateAuthUI();
+  if (auth && auth.username) {
+    load();
+  }
 </script>
 </body>
 </html>
-

@@ -1,0 +1,33 @@
+### HELLO USER (good creds: admin)
+GET http://localhost:8080/api/games/hello/user
+Authorization: Basic admin admin
+Accept: text/plain
+
+### HELLO USER (bad creds)
+GET http://localhost:8080/api/games/hello/user
+Authorization: Basic admin wrong
+Accept: text/plain
+
+### HELLO ADMIN (good creds: admin)
+GET http://localhost:8080/api/games/hello/admin
+Authorization: Basic admin admin
+Accept: text/plain
+
+### HELLO ADMIN (insufficient role: user)
+GET http://localhost:8080/api/games/hello/admin
+Authorization: Basic user user
+Accept: text/plain
+
+### HELLO UNKNOWN (public, no auth)
+GET http://localhost:8080/api/games/hello/unknown
+Accept: text/plain
+
+### GET ALL GAMES (good creds)
+GET http://localhost:8080/api/games
+Authorization: Basic admin admin
+Accept: application/json
+
+### GET ALL GAMES (bad creds)
+GET http://localhost:8080/api/games
+Authorization: Basic admin wrong
+Accept: application/json
